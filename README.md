@@ -1,7 +1,8 @@
-```markdown
+
 # BasicObfuscation
 # PowerShell Script Obfuscator
 
+```markdown
 This PowerShell script allows you to obfuscate your PowerShell scripts using different methods to protect your code from easy inspection and tampering.
 
 ## Features
