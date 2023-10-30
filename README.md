@@ -1,6 +1,5 @@
 
-# BasicObfuscation
-# PowerShell Script Obfuscator
+# BasicObfuscation - PowerShell Script Obfuscator
 
 This PowerShell script allows you to obfuscate your PowerShell scripts using different methods to protect your code from easy inspection and tampering.
 
