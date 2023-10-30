@@ -36,11 +36,11 @@ Invoke-Expression ([System.Text.Encoding]::UTF8.GetString([System.Convert]::From
 
 ## Parameters
 
-- **ScriptPath**: The path to the PowerShell script you want to obfuscate.
+- **-ScriptPath**: The path to the PowerShell script you want to obfuscate.
 - **-RemoveComments (-rc)**: Remove comments from the script.
-- **Base64 (-b64)**: Obfuscate using Base64 encoding.
-- **RandomizeVariableNames (-rvn)**: Randomize variable names.
-- **All Commands (-all)**: Runs all of the aboves.
+- **-Base64 (-b64)**: Obfuscate using Base64 encoding.
+- **-RandomizeVariableNames (-rvn)**: Randomize variable names.
+- **-All (-all)**: Runs all of the aboves.
 
 ## Examples
 
