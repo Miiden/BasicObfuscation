@@ -2,7 +2,6 @@
 # BasicObfuscation
 # PowerShell Script Obfuscator
 
-```markdown
 This PowerShell script allows you to obfuscate your PowerShell scripts using different methods to protect your code from easy inspection and tampering.
 
 ## Features
@@ -58,5 +57,3 @@ This project is licensed under the [MIT License](LICENSE.md).
 
 
 **Note:** This script is intended for educational and informational purposes only. Please use it responsibly and adhere to all applicable laws and regulations in your jurisdiction.
-
-```
