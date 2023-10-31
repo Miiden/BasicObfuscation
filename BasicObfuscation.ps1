@@ -72,8 +72,12 @@ $originalScript = Get-Content -Path $ScriptPath -Raw
 
 # Remove comments from the script
 if ($RemoveComments -or $rc) {
-    $originalScript = $originalScript -replace '(?s)<#.*?#>|#.*?(\r?\n|\r|$)', ''
+    $originalScript = $originalScript -replace '(?m)^(?=\s*#).*$|(?s)<#.*?#>', ''
 }
+
+
+# Define a list of variables that should not be modified
+$protectedVariables = @('$_', '$args', '$PSItem', '$Error', '$Host', '$ExecutionContext', '$null', 'True', 'False')
 
 if ($RandomizeVariableNames -or $rvn) {
     $variableMapping = @{}
@@ -83,20 +87,28 @@ if ($RandomizeVariableNames -or $rvn) {
     $variableNames = $originalScript | Select-String -Pattern $variableRegex -AllMatches | ForEach-Object {
         $_.Matches.Value
     } | Sort-Object -Unique
-    
+
     # Generate and store random alphanumeric values for each variable name
     $random = New-Object System.Random
     $characters = [char[]](@(48..57) + @(65..90) + @(97..122))
-    foreach ($varName in $variableNames) {
-        $randomName = -join ($characters | ForEach-Object { $_ } | Sort-Object { $random.Next() } | Select-Object -First 5) # Maximum length 5 characters
-        $variableMapping[$varName] = '$' + $randomName
+
+    $variableNames | ForEach-Object {
+        # Check if the variable is in the list of protected variables
+        if ($protectedVariables -notcontains $_) {
+            $randomName = -join ($characters | ForEach-Object { $_ } | Sort-Object { $random.Next() } | Select-Object -First 5) # Maximum length 5 characters
+            $variableMapping[$_] = '$' + $randomName
+        } else {
+            # If the variable is protected, keep it unchanged
+            $variableMapping[$_] = $_
+        }
     }
     
     # Replace variable names with the corresponding random values
-    $variableNames | ForEach-Object {
-        $originalScript = $originalScript -replace [regex]::Escape($_), $variableMapping[$_]
+    $originalScript = $variableNames | ForEach-Object {
+        $originalScript -replace [regex]::Escape($_), $variableMapping[$_]
     }
 }
+
 
 if ($Base64 -or $b64) {
     $originalScript = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($originalScript))
