@@ -70,11 +70,10 @@ $originalScript = Get-Content -Path $ScriptPath -Raw
 
 # Apply selected obfuscation methods
 
-# Remove comments from the script
+# Remove comments, lines starting with #, trailing whitespace, and consecutive newlines
 if ($RemoveComments -or $rc) {
-    $originalScript = $originalScript -replace '(?m)^(?=\s*#).*$|(?s)<#.*?#>', ''
+    $originalScript = $originalScript -replace '(?m)^\s*#.*$|(?s)<#.*?#>|^\s*#.*', '' -replace '\s+$', '' -replace '\n{2,}', "`n"
 }
-
 
 # Define a list of variables that should not be modified
 $protectedVariables = @('$_', '$args', '$PSItem', '$Error', '$Host', '$ExecutionContext', '$null', 'True', 'False')
