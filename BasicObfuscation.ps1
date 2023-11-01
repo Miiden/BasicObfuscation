@@ -78,7 +78,14 @@ if ($RemoveComments -or $rc) {
 
 ###############################################################################
 $protectedVariables = @('_', 'args', 'PSItem', 'Error', 'Host', 'ExecutionContext', 'null', 'True', 'False')
-$protectedSwitches = @('and', 'or', 'not', 'is', 'as', 'ne', 'gt', 'lt', 'eq', 'isnot', 'path', 'force', 'out', 'contains', 'erroraction', 'encoding', 'value')
+$protectedSwitches = @(
+    'and', 'or', 'not', 'is', 'as', 'ne', 'gt', 'lt', 'eq', 'isnot', 'path',
+    'force', 'out', 'contains', 'erroraction', 'encoding', 'value', 'bor',
+    'notmatch', 'match', 'band', 'like', 'unlike', 'ge', 'le', 'split',
+    'join', 'try', 'catch', 'finally', 'throw', 'in', 'notcontains', 'bxor', 'bnot', 'shl', 'shr',
+	'property'
+)
+
 
 if ($RandomizeVariableNames -or $rvn) {
     $mappings = @()
@@ -91,7 +98,14 @@ if ($RandomizeVariableNames -or $rvn) {
     $characters = [char[]](@(97..122) + @(65..90)) # Lowercase and uppercase letters
 
     foreach ($line in $lines) {
-        $matches = [regex]::Matches($line, '(\$[\w\d]+| -[\w\d]+)')  # Match variables
+		$matches = [regex]::Matches($line, '(\$[\w\d]+| -[\w\d]+)')
+
+		foreach ($match in $matches) {
+		$value = $match.Value
+		if ($value -notmatch '-\d+') {
+        # Process the matched value, excluding negative numbers
+		}
+	}
         $processedLine = $line
 
         foreach ($match in $matches) {
