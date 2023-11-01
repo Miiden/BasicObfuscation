@@ -83,9 +83,8 @@ $protectedSwitches = @(
     'force', 'out', 'contains', 'erroraction', 'encoding', 'value', 'bor',
     'notmatch', 'match', 'band', 'like', 'unlike', 'ge', 'le', 'split',
     'join', 'try', 'catch', 'finally', 'throw', 'in', 'notcontains', 'bxor', 'bnot', 'shl', 'shr',
-	'property'
+    'property'
 )
-
 
 if ($RandomizeVariableNames -or $rvn) {
     $mappings = @()
@@ -98,22 +97,18 @@ if ($RandomizeVariableNames -or $rvn) {
     $characters = [char[]](@(97..122) + @(65..90)) # Lowercase and uppercase letters
 
     foreach ($line in $lines) {
-		$matches = [regex]::Matches($line, '(\$[\w\d]+| -[\w\d]+)')
+        $matches = [regex]::Matches($line, '(\$[\w\d]+| -[\w\d]+|\.[\w\d]+)')
 
-		foreach ($match in $matches) {
-		$value = $match.Value
-		if ($value -notmatch '-\d+') {
-        # Process the matched value, excluding negative numbers
-		}
-	}
-        $processedLine = $line
+        $processedLine = $line  # Initialize processedLine
 
         foreach ($match in $matches) {
             $value = $match.Value
             $isVariable = $value -match '^\$'
             $isSwitch = $value -match ' -[\w\d]+'
+            $isDotNotation = $value -match '\.[\w\d]+'
+
             # Remove the prefix to treat variables and switches without their prefixes
-            $cleanValue = $value -replace '^\$|^\s-|^-'
+            $cleanValue = $value -replace '^\$|^\s-|^-|^\.'
 
             if ($isVariable) {
                 if ($protectedVariables -notcontains $cleanValue) {
@@ -166,14 +161,21 @@ if ($RandomizeVariableNames -or $rvn) {
                         $obfuscatedValue = " -" + $randomName
                         $mapping["obfuscatedValue"] = $obfuscatedValue
                     }
-						$newSwitchValue = $mapping["obfuscatedValue"] -replace '^\$|^\s-|^-'
-						$processedLine = $processedLine -replace [regex]::Escape($value), (" -" + $newSwitchValue)
+                    $newSwitchValue = $mapping["obfuscatedValue"] -replace '^\$|^\s-|^-'
+                    $processedLine = $processedLine -replace [regex]::Escape($value), (" -" + $newSwitchValue)
+                }
+            } elseif ($isDotNotation) {
+                $mappingsVariable = $mappings | Where-Object { $_["type"] -eq "variable" }
+                $mapping = $mappingsVariable | Where-Object { $_["cleanValue"] -eq $cleanValue }
 
+                if ($mapping -ne $null) {
+                    $newDotNotationValue = "." + $mapping["obfuscatedValue"]
+                    $processedLine = $processedLine -replace [regex]::Escape($value), $newDotNotationValue
                 }
             }
         }
 
-        $processedScript += $processedLine
+        $processedScript += $processedLine  # Add the processedLine to the processedScript
     }
 
     # Join the processed script lines
