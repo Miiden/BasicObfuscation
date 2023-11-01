@@ -23,6 +23,7 @@ Invoke-Expression ([System.Text.Encoding]::UTF8.GetString([System.Convert]::From
 
 #>
 
+
 param(
     [string]$ScriptPath,
     [switch]$RemoveComments,
@@ -75,39 +76,97 @@ if ($RemoveComments -or $rc) {
     $originalScript = $originalScript -replace '(?m)^\s*#.*$|(?s)<#.*?#>|^\s*#.*', '' -replace '\s+$', '' -replace '\n{2,}', "`n"
 }
 
-# Define a list of variables that should not be modified
-$protectedVariables = @('$_', '$args', '$PSItem', '$Error', '$Host', '$ExecutionContext', '$null', 'True', 'False')
+###############################################################################
+$protectedVariables = @('_', 'args', 'PSItem', 'Error', 'Host', 'ExecutionContext', 'null', 'True', 'False')
+$protectedSwitches = @('and', 'or', 'not', 'is', 'as', 'ne', 'gt', 'lt', 'eq', 'isnot', 'path', 'force', 'out', 'contains', 'erroraction', 'encoding', 'value')
 
 if ($RandomizeVariableNames -or $rvn) {
-    $variableMapping = @{}
-    
-    # Find all variable names in the script
-    $variableRegex = '\$\w+'
-    $variableNames = $originalScript | Select-String -Pattern $variableRegex -AllMatches | ForEach-Object {
-        $_.Matches.Value
-    } | Sort-Object -Unique
+    $mappings = @()
 
-    # Generate and store random alphanumeric values for each variable name
+    # Read the original script line by line
+    $lines = $originalScript -split "`n"
+    $processedScript = @()
+
     $random = New-Object System.Random
-    $characters = [char[]](@(48..57) + @(65..90) + @(97..122))
+    $characters = [char[]](@(97..122) + @(65..90)) # Lowercase and uppercase letters
 
-    $variableNames | ForEach-Object {
-        # Check if the variable is in the list of protected variables
-        if ($protectedVariables -notcontains $_) {
-            $randomName = -join ($characters | ForEach-Object { $_ } | Sort-Object { $random.Next() } | Select-Object -First 5) # Maximum length 5 characters
-            $variableMapping[$_] = '$' + $randomName
-        } else {
-            # If the variable is protected, keep it unchanged
-            $variableMapping[$_] = $_
+    foreach ($line in $lines) {
+        $matches = [regex]::Matches($line, '(\$[\w\d]+| -[\w\d]+)')  # Match variables
+        $processedLine = $line
+
+        foreach ($match in $matches) {
+            $value = $match.Value
+            $isVariable = $value -match '^\$'
+            $isSwitch = $value -match ' -[\w\d]+'
+            # Remove the prefix to treat variables and switches without their prefixes
+            $cleanValue = $value -replace '^\$|^\s-|^-'
+
+            if ($isVariable) {
+                if ($protectedVariables -notcontains $cleanValue) {
+                    $mappingsVariable = $mappings | Where-Object { $_["type"] -eq "variable" }
+                    $mapping = $mappingsVariable | Where-Object { $_["cleanValue"] -eq $cleanValue }
+
+                    if ($mapping -eq $null) {
+                        $mappingsSwitch = $mappings | Where-Object { $_["type"] -eq "switch" }
+                        $mapping = $mappingsSwitch | Where-Object { $_["cleanValue"] -eq $cleanValue }
+                    }
+
+                    if ($mapping -eq $null) {
+                        $mapping = @{
+                            "type" = "variable"
+                            "cleanValue" = $cleanValue
+                            "obfuscatedValue" = ""
+                        }
+                        $mappings += $mapping
+                    }
+
+                    if ($mapping["obfuscatedValue"] -eq "") {
+                        $randomName = -join ($characters | ForEach-Object { $_ } | Sort-Object { $random.Next() } | Select-Object -First 5) # Maximum length 5 characters
+                        $obfuscatedValue = "$" + $randomName
+                        $mapping["obfuscatedValue"] = $obfuscatedValue
+                    }
+
+                    $processedLine = $processedLine -replace [regex]::Escape($value), $mapping["obfuscatedValue"]
+                }
+            } elseif ($isSwitch) {
+                if ($protectedSwitches -notcontains $cleanValue) {
+                    $mappingsSwitch = $mappings | Where-Object { $_["type"] -eq "switch" }
+                    $mapping = $mappingsSwitch | Where-Object { $_["cleanValue"] -eq $cleanValue }
+
+                    if ($mapping -eq $null) {
+                        $mappingsVariable = $mappings | Where-Object { $_["type"] -eq "variable" }
+                        $mapping = $mappingsVariable | Where-Object { $_["cleanValue"] -eq $cleanValue }
+                    }
+
+                    if ($mapping -eq $null) {
+                        $mapping = @{
+                            "type" = "switch"
+                            "cleanValue" = $cleanValue
+                            "obfuscatedValue" = ""
+                        }
+                        $mappings += $mapping
+                    }
+
+                    if ($mapping["obfuscatedValue"] -eq "") {
+                        $randomName = -join ($characters | ForEach-Object { $_ } | Sort-Object { $random.Next() } | Select-Object -First 5) # Maximum length 5 characters
+                        $obfuscatedValue = " -" + $randomName
+                        $mapping["obfuscatedValue"] = $obfuscatedValue
+                    }
+						$newSwitchValue = $mapping["obfuscatedValue"] -replace '^\$|^\s-|^-'
+						$processedLine = $processedLine -replace [regex]::Escape($value), (" -" + $newSwitchValue)
+
+                }
+            }
         }
+
+        $processedScript += $processedLine
     }
-    
-    # Replace variable names with the corresponding random values
-    $originalScript = $variableNames | ForEach-Object {
-        $originalScript -replace [regex]::Escape($_), $variableMapping[$_]
-    }
+
+    # Join the processed script lines
+    $originalScript = $processedScript -join "`n"
 }
 
+###############################################################################
 
 if ($Base64 -or $b64) {
     $originalScript = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($originalScript))
@@ -119,16 +178,18 @@ $scriptDirectory = Split-Path -Path $MyInvocation.MyCommand.Definition
 # Get the base name of the script being obfuscated
 $scriptBaseName = [System.IO.Path]::GetFileNameWithoutExtension($ScriptPath)
 
-# Save the obfuscated script to a new file
+# Save the obfuscated script to a new file using StreamWriter
 $obfuscatedScriptFileName = [System.IO.Path]::GetFileNameWithoutExtension($ScriptPath) + "-obfuscated.ps1"
 $obfuscatedScriptFilePath = Join-Path -Path $scriptDirectory -ChildPath $obfuscatedScriptFileName
 
-# Save the obfuscated script content to the file
-Set-Content -Path $obfuscatedScriptFilePath -Value ([System.Text.Encoding]::UTF8.GetBytes($originalScript)) -Encoding Byte
+# Use StreamWriter to write the obfuscated script content to the file
+$streamWriter = [System.IO.StreamWriter]::new($obfuscatedScriptFilePath)
+$streamWriter.Write($originalScript)
+$streamWriter.Close()
 
 Write-Host "Script obfuscated and saved to $obfuscatedScriptFilePath"
 
 if ($Base64 -or $b64 -or $all) {
-	Write-Host "Use the following one-liner to run:"
-	Write-Host "Invoke-Expression ([System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String((Get-Content -Raw -Path '$obfuscatedScriptFilePath'))))" 
+    Write-Host "Use the following one-liner to run:"
+    Write-Host "Invoke-Expression ([System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String((Get-Content -Raw -Path '$obfuscatedScriptFilePath'))))"
 }
