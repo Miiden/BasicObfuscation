@@ -77,114 +77,164 @@ if ($RemoveComments -or $rc) {
 }
 
 ###############################################################################
+#Protected Variables that are standard to PowerShell
+$protectedVariables = @('_', 'args', 'PSItem', 'Error', 'Host', 'ExecutionContext', 'null', 'True', 'False')
+#Protected Switches that are standard to PowerShell
+$protectedSwitches = @(
+    'and', 'or', 'not', 'is', 'as', 'ne', 'gt', 'lt', 'eq', 'isnot', 'path',
+    'force', 'out', 'contains', 'erroraction', 'encoding', 'value', 'bor',
+    'notmatch', 'match', 'band', 'like', 'unlike', 'ge', 'le', 'split',
+    'join', 'try', 'catch', 'finally', 'throw', 'in', 'notcontains', 'bxor', 'bnot', 'shl', 'shr',
+    'property'
+)
+#Protected DotNotations that are standard to PowerShell
+$protectedDotNotations = @(
+	"Length", "Count", "Name", "Value", "Path", "Extension", "FullName", 
+	"BaseName", "LastWriteTime", "LastAccessTime", "CreationTime", "DirectoryName",
+	"Mode", "Size", "PSBase", "PSChildName", "PSParentPath", "PSDrive", "PSIsContainer",
+	"PSParentPath", "PSProvider", "PSPath", "PSDrive", "Aliases", "Definition", "AppDomain",
+	"ModuleBuilder", "Assembly", "PackingSize", 'Name', 'SamAccountName', 'DistinguishedName',
+	'UserPrincipalName', 'Description', 'Enabled', 'PasswordLastSet', 'AccountExpires', 'EmailAddress',
+	'GivenName', 'Surname', 'DisplayName', 'Title', 'Department', 'Company', 'Manager', 'MemberOf', 'HomeDirectory',
+	'HomeDrive', 'ScriptPath', 'Enabled', 'LockedOut', 'PasswordNeverExpires', 'PasswordExpired', 'ObjectClass',
+	"CharSet"
+)
+
+
+# Main Loop for randomizing the variables corrisponding switches and DotNotations
 if ($RandomizeVariableNames -or $rvn) {
     $mappings = @()
 
     # Read the original script line by line
     $lines = $originalScript -split "`n"
+	$lineCount = 0
     $processedScript = @()
-
+	$valuesToBeChanged = @()
+	
+	#Code for creating new random names
     $random = New-Object System.Random
     $characters = [char[]](@(97..122) + @(65..90)) # Lowercase and uppercase letters
 
     foreach ($line in $lines) {
-        $matches = [regex]::Matches($line, '(\$[\w\d]+| -[\w\d]+|\.[\w\d]+)')
+		#Regex including word boundries to make sure that Variables, Switches and DotNotations are selected correctly.
+        $matches = [regex]::Matches($line, ('\$\b[\w\d]+\b| -\b[\w\d]+\b|\.\b[\w\d]+\b'))
 
         $processedLine = $line  # Initialize processedLine
-
-        $variablesToReplace = @{}  # A dictionary to store variables and their obfuscated values
-
+		
+		#Loop for analyzing the suitability of every match for obfuscation
         foreach ($match in $matches) {
             $value = $match.Value
-            if ($value -notmatch '\s*-\d+') {
-                $isVariable = $value -match '\$\b[\w\d]+\b'
-                $isSwitch = $value -match ' -\b[\w\d]+\b'
-                $isDotNotation = $value -match '\.[\w\d]+\b'
+			# Loop to make sure that negative numbers and single character variables are not changed i.e. $i or -1
+			if ($value -notmatch '\s*-\d+|\$[a-zA-Z]\b') {
+				#Storing found variables, switches and DotNotations in corrisponding variables with regex including word boundries
+				$isVariable = $value -match '\$[\w\d]+\b'
+				$isSwitch = $value -match ' -[\w\d]+\b'
+				$isDotNotation = $value -match '\.[\w\d]+\b'
+				
+				# Remove the prefix to treat variables and switches without their prefixes
+				$cleanValue = $value -replace '^\$|^\s-|^-|^\.'
+				#Variable used for debugging code, takes the above clean value and spaces it out for easy reading later on
+				$foundOnCurrentLine += $($cleanValue + ', ')
+				
+				#Checks if the found value is a variable, and checks if the clean value already exists in the switches and variables hashtables
+				if ($isVariable) {
+					if ($protectedVariables -notcontains $cleanValue) {
+						$mappingsVariable = $mappings | Where-Object { $_["type"] -eq "variable"}
+						$mapping = $mappingsVariable | Where-Object { $_["cleanValue"] -eq $cleanValue }
+						
+						
+						if ($mapping -eq $null) {
+							$mappingsSwitch = $mappings | Where-Object { $_["type"] -eq "switch" }
+							$mapping = $mappingsSwitch | Where-Object { $_["cleanValue"] -eq $cleanValue }
+						}
+						#If the clean value dosent already have a mapping add it to the hashtable with type "variable" and add the clean value to the entry
+						if ($mapping -eq $null) {
+							$mapping = @{
+								"type" = "variable"
+								"cleanValue" = $cleanValue
+								"obfuscatedValue" = ""
+							}
+							$mappings += $mapping
+						}
 
-                # Remove the prefix to treat variables and switches without their prefixes
-                $cleanValue = $value -replace '^\$|^\s-|^-|^\.'
+						#If the entry is found and does not already an obfuscated value associated to it, create one and add it to the entry
+						if ($mapping["obfuscatedValue"] -eq "") {
+							$randomName = -join ($characters | ForEach-Object { $_ } | Sort-Object { $random.Next() } | Select-Object -First 5) # Maximum length 5 characters
+							$obfuscatedValue = "$" + $randomName.Substring(0, [Math]::Min(5, $randomName.Length))
+							$mapping["obfuscatedValue"] = $obfuscatedValue
+						}
+						#!!Problem is here!! check the line for the clean value, and if found replace it with the obfuscated value.
+						#However, at the moment, if a value is found, it replaces every matching instance of the value, without word boundries.
+						#This causes values like $Parameter to also replace the "$Parameter" in  "$ParameterTypes" on the same line
+						#Need to find a way to add word boundries to ensure that the whole word is a match, prevent partial matches.
+						$processedLine = $processedLine -replace [regex]::Escape($value), $mapping["obfuscatedValue"]
+					}
+				#Checks if the found value is a switch, and checks if the clean value already exists in the switches and variables hashtables						
+				} elseif ($isSwitch) {
+					if ($protectedSwitches -notcontains $cleanValue) {
+						$mappingsSwitch = $mappings | Where-Object { $_["type"] -eq "switch" }
+						$mapping = $mappingsSwitch | Where-Object { $_["cleanValue"] -eq $cleanValue }
 
-                if ($isVariable) {
-                    if ($protectedVariables -notcontains $cleanValue) {
-                        $mappingsVariable = $mappings | Where-Object { $_["type"] -eq "variable" }
-                        $mapping = $mappingsVariable | Where-Object { $_["cleanValue"] -eq $cleanValue }
+						if ($mapping -eq $null) {
+							$mappingsVariable = $mappings | Where-Object { $_["type"] -eq "variable" }
+							$mapping = $mappingsVariable | Where-Object { $_["cleanValue"] -eq $cleanValue }
+						}
+						#If the clean value dosent already have a mapping add it to the hashtable with type "switch" and add the clean value to the entry
+						if ($mapping -eq $null) {
+							$mapping = @{
+								"type" = "switch"
+								"cleanValue" = $cleanValue
+								"obfuscatedValue" = ""
+							}
+							$mappings += $mapping
+						}
+						#If the entry is found and does not already an obfuscated value associated to it, create one and add it to the entry
+						#May need to adjust this to only obfuscate switches that exist in the variables section already /shrug
+						if ($mapping["obfuscatedValue"] -eq "") {
+							$randomName = -join ($characters | ForEach-Object { $_ } | Sort-Object { $random.Next() } | Select-Object -First 5) # Maximum length 5 characters
+							$obfuscatedValue = " -" + $randomName.Substring(0, [Math]::Min(5, $randomName.Length))
+							$mapping["obfuscatedValue"] = $obfuscatedValue
+						}
+						#Had an issue at some point where it was adding variables insted of switches, so used regex to clean the value
+						$newSwitchValue = $mapping["obfuscatedValue"] -replace '^\$|^\s-|^-'
+						#Passes the value to be written to the line and adds the correct prefix of " -"
+						#!!Problem Here!! same as above
+						$processedLine = $processedLine -replace [regex]::Escape($value), (" -" + $newSwitchValue)
+					}
+					#Checks if the found value is a DotNotation, and checks if the clean value already exists in the variables hashtables
+					#Dont want to obfuscate a DotNotation that isnt designated within the script we are obfuscating
+				} elseif ($isDotNotation) {
+						if ($protectedDotNotations -notcontains $cleanValue) {
+						$mappingsVariable = $mappings | Where-Object { $_["type"] -eq "variable" }
+						$mapping = $mappingsVariable | Where-Object { $_["cleanValue"] -eq $cleanValue }
+						#If a variable is found with clean value associated to it, the value is cleaned and added back as a DotNotation with the correct prefix "."
+						if ($mapping -ne $null) {
+							$newDotNotationValue = $mapping["obfuscatedValue"] -replace '^\$|^\s-|^-'
+							#!!Problem Here!!
+							#Same as above
+							$processedLine = $processedLine -replace [regex]::Escape($value), ("." + $newDotNotationValue)
+						}
+					}
+				}
 
-                        if ($mapping -eq $null) {
-                            $mappingsSwitch = $mappings | Where-Object { $_["type"] -eq "switch" }
-                            $mapping = $mappingsSwitch | Where-Object { $_["cleanValue"] -eq $cleanValue }
-                        }
-
-                        if ($mapping -eq $null) {
-                            $mapping = @{
-                                "type" = "variable"
-                                "cleanValue" = $cleanValue
-                                "obfuscatedValue" = ""
-                            }
-                            $mappings += $mapping
-                        }
-
-                        if ($mapping["obfuscatedValue"] -eq "") {
-                            $randomName = -join ($characters | ForEach-Object { $_ } | Sort-Object { $random.Next() } | Select-Object -First 5) # Maximum length 5 characters
-                            $obfuscatedValue = "$" + $randomName.Substring(0, [Math]::Min(5, $randomName.Length))
-                            $mapping["obfuscatedValue"] = $obfuscatedValue
-                        }
-
-                        $variablesToReplace[$value] = $mapping["obfuscatedValue"]
-                    }
-                } elseif ($isSwitch) {
-                    if ($protectedSwitches -notcontains $cleanValue) {
-                        $mappingsSwitch = $mappings | Where-Object { $_["type"] -eq "switch" }
-                        $mapping = $mappingsSwitch | Where-Object { $_["cleanValue"] -eq $cleanValue }
-
-                        if ($mapping -eq $null) {
-                            $mappingsVariable = $mappings | Where-Object { $_["type"] -eq "variable" }
-                            $mapping = $mappingsVariable | Where-Object { $_["cleanValue"] -eq $cleanValue }
-                        }
-
-                        if ($mapping -eq $null) {
-                            $mapping = @{
-                                "type" = "switch"
-                                "cleanValue" = $cleanValue
-                                "obfuscatedValue" = ""
-                            }
-                            $mappings += $mapping
-                        }
-
-                        if ($mapping["obfuscatedValue"] -eq "") {
-                            $randomName = -join ($characters | ForEach-Object { $_ } | Sort-Object { $random.Next() } | Select-Object -First 5) # Maximum length 5 characters
-                            $obfuscatedValue = " -" + $randomName.Substring(0, [Math]::Min(5, $randomName.Length))
-
-                            $mapping["obfuscatedValue"] = $obfuscatedValue
-                        }
-                        $newSwitchValue = $mapping["obfuscatedValue"] -replace '^\$|^\s-|^-'
-                        $variablesToReplace[$value] = " -" + $newSwitchValue
-                    }
-                } elseif ($isDotNotation) {
-                    if ($protectedDotNotations -notcontains $cleanValue) {
-                        $mappingsVariable = $mappings | Where-Object { $_["type"] -eq "variable" }
-                        $mapping = $mappingsVariable | Where-Object { $_["cleanValue"] -eq $cleanValue }
-
-                        if ($mapping -ne $null) {
-                            $newDotNotationValue = $mapping["obfuscatedValue"] -replace '^\$|^\s-|^-'
-                            $variablesToReplace[$value] = "." + $newDotNotationValue
-                        }
-                    }
-                }
-            }
-        }
-
-        # Replace all variables in the processedLine
-        $variablesToReplace.Keys | ForEach-Object {
-            $processedLine = $processedLine -replace ([regex]::Escape($_)), $variablesToReplace[$_]
-        }
-
-        $processedScript += $processedLine  # Add the processedLine to the processedScript
+			}
+		}
+		# Writes out each value found on each line for temporary debugging
+		$lineCount ++
+		if (-not $foundOnCurrentLine -eq ''){
+			Write-Host "Variables found on line $lineCount : $foundOnCurrentLine"
+			#Write-Host "$processedLine"
+		}
+		#Resets the array so we only get what is found on each line, one line at a time.
+		$foundOnCurrentLine = ''
+		# Add the processedLine to the processedScript
+        $processedScript += $processedLine  
     }
 
     # Join the processed script lines
     $originalScript = $processedScript -join "`n"
-}
 
+}
 ###############################################################################
 
 if ($Base64 -or $b64) {
