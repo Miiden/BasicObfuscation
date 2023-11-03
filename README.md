@@ -5,9 +5,9 @@ This PowerShell script allows you to obfuscate your PowerShell scripts using dif
 
 ## Features
 
-- **RemoveComments**: Removes comments from the script.
+- **RemoveComments**: Removes single line and multiline comments from the script.
 - **Base64**: Encodes the script in Base64.
-- **RandomizeVariableNames**: Randomizes variable names.
+- **RandomizeVariableNames**: Randomizes variable names and corrisponding switches/dotnotation leaves protected values alone.
 
 ## Prerequisites
 
