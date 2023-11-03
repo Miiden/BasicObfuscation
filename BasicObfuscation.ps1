@@ -97,7 +97,7 @@ $protectedDotNotations = @(
 	'UserPrincipalName', 'Description', 'Enabled', 'PasswordLastSet', 'AccountExpires', 'EmailAddress',
 	'GivenName', 'Surname', 'DisplayName', 'Title', 'Department', 'Company', 'Manager', 'MemberOf', 'HomeDirectory',
 	'HomeDrive', 'ScriptPath', 'Enabled', 'LockedOut', 'PasswordNeverExpires', 'PasswordExpired', 'ObjectClass',
-	"CharSet"
+	"CharSet", "Type"
 )
 
 
@@ -124,6 +124,7 @@ if ($RandomizeVariableNames -or $rvn) {
 		#Loop for analyzing the suitability of every match for obfuscation
         foreach ($match in $matches) {
             $value = $match.Value
+
 			# Loop to make sure that negative numbers and single character variables are not changed i.e. $i or -1
 			if ($value -notmatch '\s*-\d+|\$[a-zA-Z]\b') {
 				#Storing found variables, switches and DotNotations in corrisponding variables with regex including word boundries
@@ -133,9 +134,7 @@ if ($RandomizeVariableNames -or $rvn) {
 				
 				# Remove the prefix to treat variables and switches without their prefixes
 				$cleanValue = $value -replace '^\$|^\s-|^-|^\.'
-				#Variable used for debugging code, takes the above clean value and spaces it out for easy reading later on
-				$foundOnCurrentLine += $($cleanValue + ', ')
-				
+			
 				#Checks if the found value is a variable, and checks if the clean value already exists in the switches and variables hashtables
 				if ($isVariable) {
 					if ($protectedVariables -notcontains $cleanValue) {
@@ -167,7 +166,12 @@ if ($RandomizeVariableNames -or $rvn) {
 						#However, at the moment, if a value is found, it replaces every matching instance of the value, without word boundries.
 						#This causes values like $Parameter to also replace the "$Parameter" in  "$ParameterTypes" on the same line
 						#Need to find a way to add word boundries to ensure that the whole word is a match, prevent partial matches.
-						$processedLine = $processedLine -replace [regex]::Escape($value), $mapping["obfuscatedValue"]
+						$processedLine = $processedLine -replace "$([regex]::Escape($value))\b", $mapping["obfuscatedValue"]
+
+						
+						
+
+
 					}
 				#Checks if the found value is a switch, and checks if the clean value already exists in the switches and variables hashtables						
 				} elseif ($isSwitch) {
@@ -199,7 +203,7 @@ if ($RandomizeVariableNames -or $rvn) {
 						$newSwitchValue = $mapping["obfuscatedValue"] -replace '^\$|^\s-|^-'
 						#Passes the value to be written to the line and adds the correct prefix of " -"
 						#!!Problem Here!! same as above
-						$processedLine = $processedLine -replace [regex]::Escape($value), (" -" + $newSwitchValue)
+						$processedLine = $processedLine -replace "$([regex]::Escape($value))\b", (" -" + $newSwitchValue)
 					}
 					#Checks if the found value is a DotNotation, and checks if the clean value already exists in the variables hashtables
 					#Dont want to obfuscate a DotNotation that isnt designated within the script we are obfuscating
@@ -210,23 +214,13 @@ if ($RandomizeVariableNames -or $rvn) {
 						#If a variable is found with clean value associated to it, the value is cleaned and added back as a DotNotation with the correct prefix "."
 						if ($mapping -ne $null) {
 							$newDotNotationValue = $mapping["obfuscatedValue"] -replace '^\$|^\s-|^-'
-							#!!Problem Here!!
-							#Same as above
-							$processedLine = $processedLine -replace [regex]::Escape($value), ("." + $newDotNotationValue)
+							$processedLine = $processedLine -replace "$([regex]::Escape($value))\b", ("." + $newDotNotationValue)
 						}
 					}
 				}
 
 			}
 		}
-		# Writes out each value found on each line for temporary debugging
-		$lineCount ++
-		if (-not $foundOnCurrentLine -eq ''){
-			Write-Host "Variables found on line $lineCount : $foundOnCurrentLine"
-			#Write-Host "$processedLine"
-		}
-		#Resets the array so we only get what is found on each line, one line at a time.
-		$foundOnCurrentLine = ''
 		# Add the processedLine to the processedScript
         $processedScript += $processedLine  
     }
