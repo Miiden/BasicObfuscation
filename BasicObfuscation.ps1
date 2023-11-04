@@ -73,7 +73,9 @@ $originalScript = Get-Content -Path $ScriptPath -Raw
 
 # Remove comments, lines starting with #, trailing whitespace, and consecutive newlines
 if ($RemoveComments -or $rc) {
-    $originalScript = $originalScript -replace '(?m)^\s*#.*$|(?s)<#.*?#>|^\s*#.*', '' -replace '\s+$', '' -replace '\n{2,}', "`n"
+	#$ughh = [regex]::new('(?s)\@\x27.*?\x27\@')
+	$ughh = [regex]::new('(?s)\@\'(.*?)\'\@')
+    $originalScript = $originalScript -replace '(?m)^\s*#.*$|(?s)<#.*?#>|^\s*#.*', '' -replace '\s+$', '' -replace '\n{2,}', "`n", -replace $ughh, ''
 }
 
 ###############################################################################
@@ -107,7 +109,7 @@ $protectedDotNotations = @(
 	'UserPrincipalName', 'Description', 'Enabled', 'PasswordLastSet', 'AccountExpires', 'EmailAddress',
 	'GivenName', 'Surname', 'DisplayName', 'Title', 'Department', 'Company', 'Manager', 'MemberOf', 'HomeDirectory',
 	'HomeDrive', 'ScriptPath', 'Enabled', 'LockedOut', 'PasswordNeverExpires', 'PasswordExpired', 'ObjectClass',
-	"CharSet", "Type", 'UnmanagedType'
+	"CharSet", "Type", 'UnmanagedType', 'StringWriter'
 )
 
 
