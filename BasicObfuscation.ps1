@@ -107,7 +107,7 @@ $protectedDotNotations = @(
 	'UserPrincipalName', 'Description', 'Enabled', 'PasswordLastSet', 'AccountExpires', 'EmailAddress',
 	'GivenName', 'Surname', 'DisplayName', 'Title', 'Department', 'Company', 'Manager', 'MemberOf', 'HomeDirectory',
 	'HomeDrive', 'ScriptPath', 'Enabled', 'LockedOut', 'PasswordNeverExpires', 'PasswordExpired', 'ObjectClass',
-	"CharSet", "Type"
+	"CharSet", "Type", 'UnmanagedType'
 )
 
 
@@ -172,48 +172,22 @@ if ($RandomizeVariableNames -or $rvn) {
 							$obfuscatedValue = "$" + $randomName.Substring(0, [Math]::Min(5, $randomName.Length))
 							$mapping["obfuscatedValue"] = $obfuscatedValue
 						}
-						#!!Problem is here!! check the line for the clean value, and if found replace it with the obfuscated value.
-						#However, at the moment, if a value is found, it replaces every matching instance of the value, without word boundries.
-						#This causes values like $Parameter to also replace the "$Parameter" in  "$ParameterTypes" on the same line
-						#Need to find a way to add word boundries to ensure that the whole word is a match, prevent partial matches.
+						#Check the line for the clean value, and if found replace it with the obfuscated value.
 						$processedLine = $processedLine -replace "$([regex]::Escape($value))\b", $mapping["obfuscatedValue"]
-
-						
-						
-
 
 					}
 				#Checks if the found value is a switch, and checks if the clean value already exists in the switches and variables hashtables						
 				} elseif ($isSwitch) {
 					if ($protectedSwitches -notcontains $cleanValue) {
-						$mappingsSwitch = $mappings | Where-Object { $_["type"] -eq "switch" }
-						$mapping = $mappingsSwitch | Where-Object { $_["cleanValue"] -eq $cleanValue }
 
-						if ($mapping -eq $null) {
 							$mappingsVariable = $mappings | Where-Object { $_["type"] -eq "variable" }
 							$mapping = $mappingsVariable | Where-Object { $_["cleanValue"] -eq $cleanValue }
+						if ($mapping -ne $null) {
+							#Had an issue at some point where it was adding variables insted of switches, so used regex to clean the value
+							$newSwitchValue = $mapping["obfuscatedValue"] -replace '^\$|^\s-|^-'
+							#Passes the value to be written to the line and adds the correct prefix of " -"
+							$processedLine = $processedLine -replace "$([regex]::Escape($value))\b", (" -" + $newSwitchValue)
 						}
-						#If the clean value dosent already have a mapping add it to the hashtable with type "switch" and add the clean value to the entry
-						if ($mapping -eq $null) {
-							$mapping = @{
-								"type" = "switch"
-								"cleanValue" = $cleanValue
-								"obfuscatedValue" = ""
-							}
-							$mappings += $mapping
-						}
-						#If the entry is found and does not already an obfuscated value associated to it, create one and add it to the entry
-						#May need to adjust this to only obfuscate switches that exist in the variables section already /shrug
-						if ($mapping["obfuscatedValue"] -eq "") {
-							$randomName = -join ($characters | ForEach-Object { $_ } | Sort-Object { $random.Next() } | Select-Object -First 5) # Maximum length 5 characters
-							$obfuscatedValue = " -" + $randomName.Substring(0, [Math]::Min(5, $randomName.Length))
-							$mapping["obfuscatedValue"] = $obfuscatedValue
-						}
-						#Had an issue at some point where it was adding variables insted of switches, so used regex to clean the value
-						$newSwitchValue = $mapping["obfuscatedValue"] -replace '^\$|^\s-|^-'
-						#Passes the value to be written to the line and adds the correct prefix of " -"
-						#!!Problem Here!! same as above
-						$processedLine = $processedLine -replace "$([regex]::Escape($value))\b", (" -" + $newSwitchValue)
 					}
 					#Checks if the found value is a DotNotation, and checks if the clean value already exists in the variables hashtables
 					#Dont want to obfuscate a DotNotation that isnt designated within the script we are obfuscating
@@ -228,9 +202,10 @@ if ($RandomizeVariableNames -or $rvn) {
 						}
 					}
 				}
+			
 
-			}
 		}
+	}
 		# Add the processedLine to the processedScript
         $processedScript += $processedLine  
     }
@@ -239,6 +214,7 @@ if ($RandomizeVariableNames -or $rvn) {
     $originalScript = $processedScript -join "`n"
 
 }
+
 ###############################################################################
 
 if ($Base64 -or $b64) {
