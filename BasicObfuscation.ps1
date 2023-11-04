@@ -85,7 +85,17 @@ $protectedSwitches = @(
     'force', 'out', 'contains', 'erroraction', 'encoding', 'value', 'bor',
     'notmatch', 'match', 'band', 'like', 'unlike', 'ge', 'le', 'split',
     'join', 'try', 'catch', 'finally', 'throw', 'in', 'notcontains', 'bxor', 'bnot', 'shl', 'shr',
-    'property'
+    'property', 'f', 'replace' ,'match',
+	'Clone', 'sCompareTo', 'sContains', 'sCopyTo', 'sEndsWith'
+	'Equals', 'sGetEnumerator', 'sGetHashCode', 'sGetType', 'sGetTypeCode'
+	'IndexOf', 'sIndexOfAny', 'sInsert', 'sIsNormalized', 'sLastIndexOf'
+	'LastIndexOfAny', 'sNormalize', 'sPadLeft', 'sPadRight', 'sRemove'
+	'Replace', 'sSplit', 'sStartsWith', 'sSubstring', 'sToBoolean'
+	'ToByte', 'sToChar', 'sToCharArray', 'sToDateTime', 'sToDecimal'
+	'ToDouble', 'sToInt16', 'sToInt32', 'sToInt64', 'sToLower'
+	'ToLowerInvariant', 'sToSByte', 'sToSingle', 'sToString', 'sToType'
+	'ToUInt16', 'sToUInt32', 'sToUInt64', 'sToUpper', 'sToUpperInvariant'
+	'Trim', 'sTrimEnd', 'sTrimStart', 'imatch'
 )
 #Protected DotNotations that are standard to PowerShell
 $protectedDotNotations = @(
