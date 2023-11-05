@@ -74,13 +74,13 @@ $originalScript = Get-Content -Path $ScriptPath -Raw
 # Remove comments, lines starting with #, trailing whitespace, and consecutive newlines
 if ($RemoveComments -or $rc) {
 	#$ughh = [regex]::new('(?s)\@\x27.*?\x27\@')
-	$ughh = [regex]::new('(?s)\@\'(.*?)\'\@')
-    $originalScript = $originalScript -replace '(?m)^\s*#.*$|(?s)<#.*?#>|^\s*#.*', '' -replace '\s+$', '' -replace '\n{2,}', "`n", -replace $ughh, ''
+	#$ughh = [regex]::new('(?s)\@\'(.*?)\'\@')
+    $originalScript = $originalScript -replace '(?m)^\s*#.*$|(?s)<#.*?#>|^\s*#.*', '' -replace '\s+$', '' -replace '\n{2,}', "`n"#, -replace $ughh, ''
 }
 
 ###############################################################################
 #Protected Variables that are standard to PowerShell
-$protectedVariables = @('_', 'args', 'PSItem', 'Error', 'Host', 'ExecutionContext', 'null', 'True', 'False')
+$protectedVariables = @('_', 'args', 'PSItem', 'Error', 'Host', 'ExecutionContext', 'null', 'True', 'False', 'env')
 #Protected Switches that are standard to PowerShell
 $protectedSwitches = @(
     'and', 'or', 'not', 'is', 'as', 'ne', 'gt', 'lt', 'eq', 'isnot', 'path',
@@ -119,19 +119,30 @@ if ($RandomizeVariableNames -or $rvn) {
 
     # Read the original script line by line
     $lines = $originalScript -split "`n"
-	$lineCount = 0
     $processedScript = @()
-	$valuesToBeChanged = @()
 	
 	#Code for creating new random names
     $random = New-Object System.Random
     $characters = [char[]](@(97..122) + @(65..90)) # Lowercase and uppercase letters
+	
+	# Initialize a flag to indicate whether we are inside the Param function
+    $insideParam = $false
+	$paramVars = @{}
+	$paramCount = 0
 
     foreach ($line in $lines) {
 		#Regex including word boundries to make sure that Variables, Switches and DotNotations are selected correctly.
         $matches = [regex]::Matches($line, ('\$\b[\w\d]+\b| -\b[\w\d]+\b|\.\b[\w\d]+\b'))
 
         $processedLine = $line  # Initialize processedLine
+		# Check if we enter or exit the Param function
+        if ($line -match '(?i)\s*Param\s*\(' -and $paramCount -lt 1) {
+            $insideParam = $true
+			$paramCount = 1
+        }
+        if ($insideParam -and $line -match '^\s*\)') {
+            $insideParam = $false
+        }
 		
 		#Loop for analyzing the suitability of every match for obfuscation
         foreach ($match in $matches) {
@@ -174,10 +185,17 @@ if ($RandomizeVariableNames -or $rvn) {
 							$obfuscatedValue = "$" + $randomName.Substring(0, [Math]::Min(5, $randomName.Length))
 							$mapping["obfuscatedValue"] = $obfuscatedValue
 						}
-						#Check the line for the clean value, and if found replace it with the obfuscated value.
-						$processedLine = $processedLine -replace "$([regex]::Escape($value))\b", $mapping["obfuscatedValue"]
+						#Check the line for the clean value, and if found replace it with the obfuscated value.		
+                        
+						# Check if the variable is found within the "Param ()" function
+                        if ($insideParam) {
+							# Create a param variable entry
+                            $paramVars[$cleanValue] = $obfuscatedValue
+							}
+							$processedLine = $processedLine -replace "$([regex]::Escape($value))\b", $mapping["obfuscatedValue"]
+						}
+						
 
-					}
 				#Checks if the found value is a switch, and checks if the clean value already exists in the switches and variables hashtables						
 				} elseif ($isSwitch) {
 					if ($protectedSwitches -notcontains $cleanValue) {
@@ -214,9 +232,15 @@ if ($RandomizeVariableNames -or $rvn) {
 
     # Join the processed script lines
     $originalScript = $processedScript -join "`n"
+	
+    # Print the param variables and their obfuscated values
+	Write-Host "Variables found in the first Param function:"
+    foreach ($cleanValue in $paramVars.Keys) {
+        $obfuscatedValue = $paramVars[$cleanValue]
+        Write-Host "$cleanValue -> $obfuscatedValue"
+    }
 
 }
-
 ###############################################################################
 
 if ($Base64 -or $b64) {
