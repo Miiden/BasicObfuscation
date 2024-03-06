@@ -1,60 +1,58 @@
-# EyeSpy
 
-![EyeSpy Logo](https://github.com/Miiden/EyeSpy/blob/main/eyespy_logo.png)
+# BasicObfuscation - PowerShell Script Obfuscator
 
-EyeSpy is a tool designed to enumerate and gain access to IP Cameras via RTSP. It provides a flexible and efficient way to scan for open RTSP ports, discover available paths, and attempt common credential spraying attacks.
+This PowerShell script allows you to obfuscate your PowerShell scripts using different methods to protect your code from easy inspection and tampering.
 
-## Table of Contents
+## Features
 
-- [Introduction](#introduction)
-- [Installation](#installation)
-- [Usage](#usage)
-- [Examples](#examples)
-- [Contributing](#contributing)
-- [License](#license)
+- **RemoveComments**: Removes single line and multiline comments from the script.
+- **Base64**: Encodes the script in Base64.
+- **RandomizeVariableNames**: Randomizes variable names and corrisponding switches/dotnotation leaves protected values alone.
 
-## Introduction
+## Prerequisites
 
-EyeSpy is developed by Miiden and is available on [GitHub](https://github.com/Miiden). It utilizes PowerShell scripting to perform various tasks related to IP camera enumeration and access.
-EyeSpy is designed to enumerate and gain access to IP Cameras via RTSP. It provides a flexible and efficient way to scan for open RTSP ports, discover available paths, and attempt common credential spraying attacks.
+- Windows PowerShell or PowerShell Core
 
-It is currently a work in progress and as always has a few bugs, feel free to Contribute
+## Getting Started
 
-## Installation
+1. Clone this repository or download the script file.
+2. Open your terminal or PowerShell command prompt.
 
-There is no specific installation required for EyeSpy. Simply download or clone the script from the [GitHub repository](https://github.com/Miiden/EyeSpy) and run it using PowerShell.
+### Basic Usage
 
-## Usage
+```powershell
+.\BasicObfuscation.ps1 -ScriptPath "C:\path\to\your_script.ps1" -RemoveComments -Base64 -RandomizeVariableNames
+```
 
-EyeSpy provides several command-line options to customize its behavior:
+This command obfuscates the specified script by removing comments, converting it to Base64, and randomizing variable names.
 
-- `-Scan <IP>`: Scan a single IP address for open RTSP ports.
-- `-FullAuto <IP/CIDR>`: Perform a full automatic scan within a specified IP range (CIDR notation).
-- `-PathScan <IP/CIDR>`: Scan for open RTSP ports and spray common paths.
-- `-Help`: Display the help menu, showing usage instructions and examples.
+### Running Obfuscated Scripts
+
+After obfuscation, you can run the obfuscated script using the following one-liner:
+
+```powershell
+Invoke-Expression ([System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String((Get-Content -Raw -Path "obfuscated.ps1")))
+```
+
+## Parameters
+
+- **-ScriptPath**: The path to the PowerShell script you want to obfuscate.
+- **-RemoveComments (-rc)**: Remove comments from the script.
+- **-Base64 (-b64)**: Obfuscate using Base64 encoding.
+- **-RandomizeVariableNames (-rvn)**: Randomize variable names.
+- **-All (-all)**: Runs all of the aboves.
 
 ## Examples
 
-
-### Scan the Network Provided
-```powershell
-EyeSpy -Scan 192.168.0.123
-```
-### Full Automatic Scan
-```powershell
-EyeSpy -FullAuto 192.168.0.1/24
-```
-### Path Scan
-```powershell
-EyeSpy -PathScan 10.0.0.0/16
-```
-### Display Help
-```powershell
-EyeSpy -Help
-```
-
-## Contributing
-Contributions to EyeSpy are welcome. Feel free to fork the repository, make improvements, and submit pull requests.
+- Obfuscate the script using all available techniques:
+  
+  ```powershell
+  .\ObfuscateScript.ps1 -ScriptPath "C:\path\to\your_script.ps1" -all
+  ```
 
 ## License
-EyeSpy is licensed under the [MIT](https://github.com/Miiden/BasicObfuscation/blob/main/LICENSE.md) License.
+
+This project is licensed under the [MIT License](LICENSE.md).
+
+
+**Note:** This script is intended for educational and informational purposes only. Please use it responsibly and adhere to all applicable laws and regulations in your jurisdiction.
