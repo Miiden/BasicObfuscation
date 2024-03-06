@@ -32,6 +32,21 @@ EyeSpy provides several command-line options to customize its behavior:
 
 ## Examples
 
+```powershell
+EyeSpy -Scan 192.168.0.123
+Full Automatic Scan
+powershell
+Copy code
+EyeSpy -FullAuto 192.168.0.1/24
+Path Scan
+powershell
+Copy code
+EyeSpy -PathScan 10.0.0.0/16
+Display Help
+powershell
+Copy code
+EyeSpy -Help
+```
 ### Basic Usage
 
 ```powershell
