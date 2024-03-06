@@ -16,6 +16,9 @@ EyeSpy is a tool designed to enumerate and gain access to IP Cameras via RTSP. I
 ## Introduction
 
 EyeSpy is developed by Miiden and is available on [GitHub](https://github.com/Miiden). It utilizes PowerShell scripting to perform various tasks related to IP camera enumeration and access.
+EyeSpy is designed to enumerate and gain access to IP Cameras via RTSP. It provides a flexible and efficient way to scan for open RTSP ports, discover available paths, and attempt common credential spraying attacks.
+
+It is currently a work in progress and as always has a few bugs, feel free to Contribute
 
 ## Installation
 
@@ -33,19 +36,25 @@ EyeSpy provides several command-line options to customize its behavior:
 ## Examples
 
 
-###Scan the Network Provided
+### Scan the Network Provided
 ```powershell
 EyeSpy -Scan 192.168.0.123
 ```
-###Full Automatic Scan
+### Full Automatic Scan
 ```powershell
 EyeSpy -FullAuto 192.168.0.1/24
 ```
-###Path Scan
+### Path Scan
 ```powershell
 EyeSpy -PathScan 10.0.0.0/16
 ```
-###Display Help
+### Display Help
 ```powershell
 EyeSpy -Help
 ```
+
+## Contributing
+Contributions to EyeSpy are welcome. Feel free to fork the repository, make improvements, and submit pull requests.
+
+## License
+EyeSpy is licensed under the [MIT](https://github.com/Miiden/EyeSpy/LICENSE.md) License.
